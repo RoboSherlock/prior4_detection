@@ -27,6 +27,7 @@ class Prior4:
         means_with_count, labels = Utils.cluster(res_seg[0], res_d[0], res_coff[0], self.config)
 
         outputs_list = []
+        mean_bb_list = []
         for clusterid in range(len(means_with_count)):
             if self.config["verbose"] > 1:
                 print("=====================================")
@@ -38,6 +39,8 @@ class Prior4:
 
             mean_bb = means_with_count[clusterid][0]
             coord_K = Utils.coord_K_from(mean_bb, self.config)
+
+            mean_bb_list.append(mean_bb)
             
             if self.config["verbose"] > 1:
                 print("coord_K", coord_K)
@@ -53,7 +56,7 @@ class Prior4:
             if self.config["verbose"] > 1:
                 self.print_eval_output(outputs, priors)
                 
-        return outputs_list
+        return outputs_list, mean_bb_list, labels
     
     def print_eval_output(self, outputs, priors):
         countOfPriors = priors[0].shape[1]
