@@ -31,8 +31,9 @@ class Prior4:
         for clusterid in range(len(means_with_count)):
             if self.config["verbose"] > 1:
                 print("=====================================")
-            if means_with_count[clusterid][1] < 100 and self.config["verbose"] > 0:
-                print('Skipped cluster with', means_with_count[clusterid][1], "pixels.")
+            if means_with_count[clusterid][1] < 100:
+                if self.config["verbose"] > 0
+                    print('Skipped cluster with', means_with_count[clusterid][1], "pixels.")
                 continue
 
             iseg = (labels == clusterid + 1).astype(float)
@@ -105,6 +106,8 @@ class Prior4:
         test_d_image = imread(self.config["data_path"] + Config.exampleDImageName, IMREAD_ANYDEPTH)
                                               
         priors = PriorDecl.prepare_prior(PriorDecl.examplePrior)
-        self(test_rgb_image, test_d_image, priors=priors)
+        out = self(test_rgb_image, test_d_image, priors=priors)
         
         self.config = config
+        return out
+        
