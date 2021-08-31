@@ -32,7 +32,7 @@ class Prior4:
             if self.config["verbose"] > 1:
                 print("=====================================")
             if means_with_count[clusterid][1] < 100:
-                if self.config["verbose"] > 0
+                if self.config["verbose"] > 0:
                     print('Skipped cluster with', means_with_count[clusterid][1], "pixels.")
                 continue
 
