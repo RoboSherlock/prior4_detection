@@ -5,6 +5,8 @@ from cv2 import imread, IMREAD_ANYDEPTH, IMREAD_UNCHANGED
 from Prior4PE import Utils, Config
 from Prior4PE.Config import model_infos
 
+import cv2
+
 class Prior4:
     def __init__(self, _config):
         self.config = Config.initial_config
@@ -21,9 +23,29 @@ class Prior4:
         print(f'Pose estimation model ({self.config["pose_model_name"]}) loaded successfully')
         
 
-    def __call__(self, input_rgb_image, input_d_image=None, cm_input=Config.exampleCameraMatrix, priors=[]):
-
-        res_seg, res_d, res_coff, used_rgb_image = self.seg_model.predict(input_rgb_image[np.newaxis])
+    def __call__(self, input_rgb_image, input_d_image=None, cm_input=Config.exampleCameraMatrix, priors=[], lookAt_t = None):
+    
+        if lookAt_t is None:
+            x_off = 0. # 370968.1525 / 1235.32 - 320
+            y_off = 0. # 181921.145 / 1235.32 - 240
+            s= 1. # 1235.32 / 1000 
+        else:
+            uvw = cm_input[0] @ np.array(lookAt_t)
+            print(lookAt_t.shape, uvw.shape, cm_input.shape)
+            uv = uvw[:2] / uvw[2]
+            s = uvw[2] / 1000
+            x_off = uv[0] - cm_input[0,0,2]
+            y_off = uv[1] - cm_input[0,1,2]
+            
+        warp_mat = cv2.invertAffineTransform(np.array([
+            [2.* s, 0,  0 + x_off * 2],
+            [0, 2. * s,  0 + y_off * 2]
+        ]))
+        input_rgb_image = cv2.warpAffine(input_rgb_image, warp_mat, (640, 480))
+        used_rgb_image = input_rgb_image[np.newaxis]
+        
+#         res_seg, res_d, res_coff, used_rgb_image = self.seg_model.predict(input_rgb_image[np.newaxis])
+        res_seg, res_d, res_coff, _,_,_ = self.seg_model.predict(input_rgb_image[np.newaxis])
         means_with_count, labels = Utils.cluster(res_seg[0], res_d[0], res_coff[0], self.config)
 
         outputs_list = []
@@ -48,6 +70,11 @@ class Prior4:
 
             _rgb, _d, _iseg = Utils.tranformRGBDIseg(coord_K, used_rgb_image[0], input_d_image, iseg, self.config)
 
+            coord_K = coord_K * s
+            coord_K[1] += np.array([x_off, y_off])
+            if self.config["verbose"] > 1:
+                print("corr coord_K", coord_K)
+                
             outputs = self.pose_model.predict(tf.data.Dataset.from_tensors((tuple(
                 [_rgb[np.newaxis], _iseg[np.newaxis], cm_input, coord_K[np.newaxis], _d[np.newaxis]]
                 + list(priors)),
@@ -95,7 +122,7 @@ class Prior4:
 
         print("=====================================")
     
-    def test(self):
+    def test(self, lookAt_t = None):
         config = self.config
         self.config.update({"verbose": 10})
         
@@ -106,7 +133,7 @@ class Prior4:
         test_d_image = imread(self.config["data_path"] + Config.exampleDImageName, IMREAD_ANYDEPTH)
                                               
         priors = PriorDecl.prepare_prior(PriorDecl.examplePrior)
-        out = self(test_rgb_image, test_d_image, priors=priors)
+        out = self(test_rgb_image, test_d_image, priors=priors, lookAt_t=lookAt_t)
         
         self.config = config
         return out
